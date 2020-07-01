@@ -43,6 +43,13 @@ Create symlink `/usr/lib/zabbix/modules` pointing to module's `dist/` to allow z
 # sudo ln -s ~/zabbix-<version>/src/modules/zabbix-history-influxdb/dist /usr/lib/zabbix/modules
 ```
 
+Compile Zabbix-server source, change the option postgresql to mysql if needed.
+Zabbix is compiled with gnutls to use curl with gnutls to avoid multithread issue with libcurl
+See: https://curl.haxx.se/libcurl/c/threadsafe.html
+```
+# ./configure --enable-server --with-postgresql --without-ssl --with-gnutls
+```
+
 ## Similarly to regular installation
 
 Enable the module in the main Zabbix server configuration file (usually in `/etc/zabbix/zabbix_server.conf`) - change modules section near the end to point on your module:
@@ -69,7 +76,7 @@ Finally if you change any module source, you need to compile it with `make` comm
 For compiler to work you will need, apart from Zabbix sources, these packages
 
 ```
-# apt install gcc libcurl4-openssl-dev libpcre3-dev libevent-dev
+# apt install gcc libcurl4-gnutls-dev libpcre3-dev libevent-dev
 ```
 
 Build the module by running `make` from the module's directory, output is produced in the `dist/` subdir.

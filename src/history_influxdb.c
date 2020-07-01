@@ -1,6 +1,7 @@
 /*
 **  zabbix-history-influxdb loadable module for Zabbix
     Copyright (C) 2018 Lucy MacPhail
+    Copyright (C) 2020 Emmanuel Riviere
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +36,7 @@
 #include "cfg.h"
 #include "db.h"
 
+
 #include "load_config.h"
 
 #include <string.h>
@@ -42,6 +44,7 @@
 #include <stdio.h>
 #include <curl/curl.h>
 #include <time.h>
+#include <pthread.h> 
 
 #define METRIC_LEN 1000
 #define CURL_LEN 256
@@ -149,6 +152,7 @@ int	zbx_module_init(void)
 	zabbix_log(LOG_LEVEL_INFORMATION, "[%s] Database Engine used: %s", MODULE_NAME, PARSE_DATABASE_ENGINE);
 	//zabbix_log(LOG_LEVEL_INFORMATION, "[%s] Using compatibility with Zabbix %d", MODULE_NAME, CONFIG_ZABBIX_MAJOR_VERSION);
 
+	curl_global_init(CURL_GLOBAL_ALL);
 	return ZBX_MODULE_OK;
 }
 
@@ -165,6 +169,7 @@ int	zbx_module_init(void)
  ******************************************************************************/
 int	zbx_module_uninit(void)
 {
+    curl_global_cleanup();
 	return ZBX_MODULE_OK;
 }
 
@@ -177,12 +182,9 @@ int	zbx_module_uninit(void)
  *
  ******************************************************************************/
 
-void write_to_influxdb(char *influxdb_data_entry) {
+void * write_to_influxdb(void *influxdb_data_entry) {
 	CURL *curl;
 	CURLcode res;
-	int i;
-
-	curl_global_init(CURL_GLOBAL_ALL);
 
 	curl = curl_easy_init();
 	if(curl) {
@@ -190,15 +192,20 @@ void write_to_influxdb(char *influxdb_data_entry) {
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, CONFIG_INFLUXDB_SSL_INSECURE ? 0L : 1L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, CONFIG_INFLUXDB_SSL_INSECURE ? 0L : 1L);
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, influxdb_data_entry);
+        //curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+        
+        if(CONFIG_REQUEST_TIMEOUT > 0)
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, CONFIG_REQUEST_TIMEOUT);
 		res = curl_easy_perform(curl);
 
 		if(res != CURLE_OK){
 			zabbix_log(LOG_LEVEL_ERR, "[%s] curl_easy_perform() failed: %s", MODULE_NAME, curl_easy_strerror(res));
 		}
 		curl_easy_cleanup(curl);
+        zabbix_log(MODULE_LOG_LEVEL, "[%s]     completed write_to_influxdb", MODULE_NAME);
 	}
-	curl_global_cleanup();
-	zabbix_log(MODULE_LOG_LEVEL, "[%s]     completed write_to_influxdb", MODULE_NAME);
+    pthread_exit(NULL);
 }
 
 /******************************************************************************
@@ -506,8 +513,31 @@ static void history_general_cb(const int item_type, const void *history, int his
 		zbx_free(influx_data);
 	}
 	zabbix_log(MODULE_LOG_LEVEL, "[%s]     influxdb_data_entry: %s", MODULE_NAME, influxdb_data_entry);
-	write_to_influxdb(influxdb_data_entry);
 
+    //Threading requires using libcurl with libssl => 1.1 or libcurl-gnutls 
+    //See https://curl.haxx.se/libcurl/c/threadsafe.html
+    pthread_t write_data_thread;
+    pthread_attr_t attr;
+    int err;
+
+    err = pthread_attr_init(&attr);
+    if(err){
+        zabbix_log(MODULE_LOG_LEVEL, "[%s] Failed to init thread attr: %s", MODULE_NAME, strerror(err));
+        return;
+    }
+
+    err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if(err){
+        zabbix_log(MODULE_LOG_LEVEL, "[%s] Failed to create thread: %s", MODULE_NAME, strerror(err));
+        pthread_attr_destroy(&attr);
+        return;
+    }
+
+    err = pthread_create(&write_data_thread, &attr, &write_to_influxdb, (void *) &influxdb_data_entry);
+    if(err){
+        zabbix_log(MODULE_LOG_LEVEL, "[%s] Failed to create thread: %s", MODULE_NAME, strerror(err));
+    }
+    pthread_attr_destroy(&attr);
 }
 
 
