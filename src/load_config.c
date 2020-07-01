@@ -16,6 +16,7 @@ int *CONFIG_FORCE_MODULE_DEBUG = NULL;
 int *CONFIG_ZABBIX_MAJOR_VERSION = NULL;
 int *CONFIG_DATABASE_ENGINE = NULL;
 char *PARSE_DATABASE_ENGINE = NULL;
+int *CONFIG_REQUEST_TIMEOUT = NULL;
 
 
 /*********************************************************************
@@ -53,6 +54,8 @@ void     zbx_module_load_config(void)
 				PARM_OPT,		3,		4},
 		{"DatabaseEngine",	&PARSE_DATABASE_ENGINE,	TYPE_STRING,
 				PARM_OPT,		0,		0},
+        {"RequestTimeout",	&CONFIG_REQUEST_TIMEOUT, TYPE_INT,
+				PARM_OPT,		0,		0},        
 		{NULL}
 	};
 
@@ -64,6 +67,7 @@ void     zbx_module_load_config(void)
 	CONFIG_FORCE_MODULE_DEBUG = (int*) 0;
 	CONFIG_ZABBIX_MAJOR_VERSION = (int*) 4;
 	PARSE_DATABASE_ENGINE = zbx_strdup(PARSE_DATABASE_ENGINE, "mysql");
+    CONFIG_REQUEST_TIMEOUT = (int*) 10;
 
 
 	// load main config file

@@ -19,6 +19,7 @@
   - `InfluxDBPassword=`
   - `ZabbixMajorVersion=4`
   - `DatabaseEngine=mysql`
+  - `RequestTimeout=10`
 
 
 This is what you get in Grafana:
