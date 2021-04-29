@@ -44,7 +44,6 @@
 #include <stdio.h>
 #include <curl/curl.h>
 #include <time.h>
-#include <pthread.h> 
 
 #define METRIC_LEN 1000
 #define CURL_LEN 256
@@ -169,7 +168,9 @@ int	zbx_module_init(void)
  ******************************************************************************/
 int	zbx_module_uninit(void)
 {
+    zabbix_log(MODULE_LOG_LEVEL, "[%s] Stopping module", MODULE_NAME);
     curl_global_cleanup();
+    zabbix_log(MODULE_LOG_LEVEL, "[%s] Curl cleaned up", MODULE_NAME);
 	return ZBX_MODULE_OK;
 }
 
@@ -182,12 +183,18 @@ int	zbx_module_uninit(void)
  *
  ******************************************************************************/
 
-void * write_to_influxdb(void *influxdb_data_entry) {
-	CURL *curl;
+void write_to_influxdb(char *influxdb_data_entry) {
+    pid_t process_id;
+    process_id = getpid();
+
+  	CURL *curl;
 	CURLcode res;
 
+    zabbix_log(MODULE_LOG_LEVEL,"[%s][%d] Going to init curl" , MODULE_NAME, process_id);
 	curl = curl_easy_init();
+    zabbix_log(MODULE_LOG_LEVEL,"[%s][%d] Curl init done " , MODULE_NAME, process_id);
 	if(curl) {
+        zabbix_log(MODULE_LOG_LEVEL,"[%s][%d] Setting curl options" , MODULE_NAME, process_id);
 		curl_easy_setopt(curl, CURLOPT_URL, influxdb_write_url);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, CONFIG_INFLUXDB_SSL_INSECURE ? 0L : 1L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, CONFIG_INFLUXDB_SSL_INSECURE ? 0L : 1L);
@@ -196,16 +203,23 @@ void * write_to_influxdb(void *influxdb_data_entry) {
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
         
         if(CONFIG_REQUEST_TIMEOUT > 0)
-            curl_easy_setopt(curl, CURLOPT_TIMEOUT, CONFIG_REQUEST_TIMEOUT);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)CONFIG_REQUEST_TIMEOUT);
+            curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, (long)CONFIG_REQUEST_TIMEOUT);
+
+        zabbix_log(MODULE_LOG_LEVEL,"[%s][%d] Launching curl request" , MODULE_NAME, process_id);
 		res = curl_easy_perform(curl);
+        zabbix_log(MODULE_LOG_LEVEL,"[%s][%d] Launching curl request done" , MODULE_NAME, process_id);
 
 		if(res != CURLE_OK){
-			zabbix_log(LOG_LEVEL_ERR, "[%s] curl_easy_perform() failed: %s", MODULE_NAME, curl_easy_strerror(res));
+			zabbix_log(LOG_LEVEL_ERR, "[%s][%d] curl_easy_perform() failed: %s", MODULE_NAME, process_id, curl_easy_strerror(res));
 		}
 		curl_easy_cleanup(curl);
-        zabbix_log(MODULE_LOG_LEVEL, "[%s]     completed write_to_influxdb", MODULE_NAME);
+        zabbix_log(MODULE_LOG_LEVEL, "[%s][%d] completed write_to_influxdb", MODULE_NAME, process_id);
 	}
-    pthread_exit(NULL);
+
+    zabbix_log(MODULE_LOG_LEVEL,"[%s][%d] Exiting" , MODULE_NAME, process_id);
+    //Exiting program as we are in a fork
+    exit(0);
 }
 
 /******************************************************************************
@@ -514,30 +528,17 @@ static void history_general_cb(const int item_type, const void *history, int his
 	}
 	zabbix_log(MODULE_LOG_LEVEL, "[%s]     influxdb_data_entry: %s", MODULE_NAME, influxdb_data_entry);
 
-    //Threading requires using libcurl with libssl => 1.1 or libcurl-gnutls 
-    //See https://curl.haxx.se/libcurl/c/threadsafe.html
-    pthread_t write_data_thread;
-    pthread_attr_t attr;
-    int err;
-
-    err = pthread_attr_init(&attr);
-    if(err){
-        zabbix_log(MODULE_LOG_LEVEL, "[%s] Failed to init thread attr: %s", MODULE_NAME, strerror(err));
-        return;
+    int pid;
+    pid = fork();
+    if(pid < 0){
+        zabbix_log(LOG_LEVEL_ERR, "[%s] Failed to fork to push data to influxdb", MODULE_NAME);
+    }else if(pid == 0){
+        zbx_setproctitle("Influxdb writer");
+        write_to_influxdb(influxdb_data_entry);
+    }else{
+        //to not having defunct/zombie child, we don't wait for child return anyway
+        signal(SIGCHLD, SIG_IGN);
     }
-
-    err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if(err){
-        zabbix_log(MODULE_LOG_LEVEL, "[%s] Failed to create thread: %s", MODULE_NAME, strerror(err));
-        pthread_attr_destroy(&attr);
-        return;
-    }
-
-    err = pthread_create(&write_data_thread, &attr, &write_to_influxdb, (void *) &influxdb_data_entry);
-    if(err){
-        zabbix_log(MODULE_LOG_LEVEL, "[%s] Failed to create thread: %s", MODULE_NAME, strerror(err));
-    }
-    pthread_attr_destroy(&attr);
 }
 
 
