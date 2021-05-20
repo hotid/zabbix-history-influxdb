@@ -294,10 +294,9 @@ char *itemid_to_influx_data(zbx_uint64_t itemid)
 				// applications
 				    "coalesce("
 				    "',applications=' || replace(replace(("
-				        "select string_agg(a.name, '|') "
-				        "from applications a "
-				        "inner join items_applications ia on ia.applicationid = a.applicationid "
-				        "where ia.itemid=i.itemid"
+				        "select string_agg(a.tag, '|') "
+				        "from item_tag a "
+				        "where a.itemid=i.itemid"
 				    "), ' ', '\\ '), ',', '\\,'), "
 				    "'') "
 				"FROM items i WHERE i.itemid=" ZBX_FS_UI64,
@@ -355,10 +354,9 @@ char *itemid_to_influx_data(zbx_uint64_t itemid)
 				", "
 				// applications
 				    "coalesce(concat(',applications=', replace(replace(("
-				        "select group_concat(a.name SEPARATOR '|') "
-				        "from applications a "
-				        "inner join items_applications ia on ia.applicationid = a.applicationid "
-				        "where ia.itemid=i.itemid"
+				        "select group_concat(a.tag SEPARATOR '|') "
+				        "from item_tag a "
+				        "where a.itemid=i.itemid"
 				    "), ' ', '\\\\ '), ',', '\\\\,')), "
 				    "'') "
 				") FROM items i WHERE i.itemid=" ZBX_FS_UI64,
