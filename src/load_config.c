@@ -71,11 +71,11 @@ void     zbx_module_load_config(void)
 
 
 	// load main config file
-	parse_cfg_file(MODULE_CONFIG_FILE, module_cfg, ZBX_CFG_FILE_REQUIRED, ZBX_CFG_STRICT);
+	parse_cfg_file(MODULE_CONFIG_FILE, module_cfg, ZBX_CFG_FILE_REQUIRED, ZBX_CFG_STRICT, ZBX_CFG_EXIT_FAILURE);
 
 
 	// load local config file if present
-	parse_cfg_file(MODULE_LOCAL_CONFIG_FILE, module_cfg, ZBX_CFG_FILE_OPTIONAL, ZBX_CFG_STRICT);
+	parse_cfg_file(MODULE_LOCAL_CONFIG_FILE, module_cfg, ZBX_CFG_FILE_OPTIONAL, ZBX_CFG_STRICT, ZBX_CFG_EXIT_FAILURE);
 
 	// parse database engine
 	if (strcmp(PARSE_DATABASE_ENGINE, "mysql") == 0) {

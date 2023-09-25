@@ -2,9 +2,9 @@
 #define __ZABBIX_LOAD_CONFIG_H
 
 
-#include "sysinc.h"
+#include "zbxsysinc.h"
 #include "module.h"
-#include "common.h"
+#include "zbxcommon.h"
 #include "log.h"
 #include "cfg.h"
 

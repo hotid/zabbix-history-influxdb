@@ -29,12 +29,13 @@
  *
  ******************************************************************************/
 
-#include "common.h"
-#include "sysinc.h"
+#include "zbxcommon.h"
+#include "zbxsysinc.h"
 #include "module.h"
 #include "log.h"
 #include "cfg.h"
-#include "db.h"
+#include "zbxdb.h"
+#include "zbxdbwrap.h"
 
 
 #include "load_config.h"
@@ -371,9 +372,9 @@ char *itemid_to_influx_data(zbx_uint64_t itemid)
 
 	// log for debugging the query
 	// zabbix_log(MODULE_LOG_LEVEL, "[%s] itemid_to_influx_data query: %s", MODULE_NAME, query_str);
-	result = DBselect("%s", query_str);
+	result = zbx_db_select("%s", query_str);
 
-	if (NULL != (row = DBfetch(result)))
+	if (NULL != (row = zbx_db_fetch(result)))
 	{
 		ret_string = zbx_strdup(NULL, row[0]);
 	}
@@ -381,7 +382,7 @@ char *itemid_to_influx_data(zbx_uint64_t itemid)
 		zabbix_log(LOG_LEVEL_ERR, "[%s] missing information for itemid " ZBX_FS_UI64, MODULE_NAME, itemid);
 		ret_string = NULL;
 	}
-	DBfree_result(result);
+	zbx_db_free_result(result);
 
 	// log for debugging the query
 	// zabbix_log(MODULE_LOG_LEVEL, "[%s] itemid_to_influx_data result: %s", MODULE_NAME, ret_string);
