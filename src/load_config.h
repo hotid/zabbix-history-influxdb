@@ -5,8 +5,8 @@
 #include "zbxsysinc.h"
 #include "module.h"
 #include "zbxcommon.h"
-#include "log.h"
-#include "cfg.h"
+//#include "log.h"
+#include "zbxcfg.h"
 
 #define MODULE_NAME "history_influxdb.so"
 #define MODULE_LOCAL_CONFIG_FILE_NAME "history_influxdb_local.conf"
@@ -18,8 +18,7 @@
 #define DATABASE_ENGINE_POSTGRESQL 1
 #define DATABASE_ENGINE_MYSQL      2
 
-extern char *CONFIG_LOAD_MODULE_PATH;
-
+static char *CONFIG_LOAD_MODULE_PATH = "/usr/lib/zabbix/modules";
 
 extern void zbx_module_load_config(void);
 extern void zbx_module_set_defaults(void);

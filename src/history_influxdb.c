@@ -32,8 +32,8 @@
 #include "zbxcommon.h"
 #include "zbxsysinc.h"
 #include "module.h"
-#include "log.h"
-#include "cfg.h"
+//#include "log.h"
+#include "zbxcfg.h"
 #include "zbxdb.h"
 #include "zbxdbwrap.h"
 
@@ -239,8 +239,8 @@ void write_to_influxdb(char *influxdb_data_entry) {
 
 char *itemid_to_influx_data(zbx_uint64_t itemid)
 {
-	DB_RESULT	result;
-	DB_ROW		row;
+	zbx_db_result_t	result;
+	zbx_db_row_t	row;
 	char *ret_string;
 //	const char *cut_fnc;
 //	const char *agg_fnc;
